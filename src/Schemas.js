@@ -3,6 +3,7 @@
 class Schemas {
 
   constructor() {
+    this.schemaIds = []
     this.schemaDict = {};
     this.templateCache = {};
   }
@@ -20,30 +21,32 @@ class Schemas {
   add(schema) {
     if (this.validateSchema(schema)) {
       this.schemaDict[schema.template] = schema;
-      var templateEl = document.querySelector(schema.template);
-      if (!templateEl) {
-        NAF.log.error(`Template el not found for ${schema.template}, make sure NAF.schemas.add is called after <a-scene> is defined.`);
-        return;
+      this.schemaIds.push(schema.template)
+      if(schema.addEntity) {
+        this.templateCache[schema.template] = schema.addEntity;
+      } else {
+        var templateEl = document.querySelector(schema.template);
+        if (!templateEl) {
+          NAF.log.error(`Template el not found for ${schema.template}, make sure NAF.schemas.add is called after <a-scene> is defined.`);
+          return;
+        }
+        if (!this.validateTemplate(schema, templateEl)) {
+          return;
+        }
+        const t = document.importNode(templateEl.content, true);
+        this.templateCache[schema.template] = function() {
+          return t.firstElementChild.cloneNode(true);
+        }
       }
-      if (!this.validateTemplate(schema, templateEl)) {
-        return;
-      }
-      this.templateCache[schema.template] = document.importNode(templateEl.content, true);
     } else {
       NAF.log.error('Schema not valid: ', schema);
       NAF.log.error('See https://github.com/haydenjameslee/networked-aframe#syncing-custom-components');
     }
   }
 
-  getCachedTemplate(template) {
-    if (!this.templateIsCached(template)) {
-      if (this.templateExistsInScene(template)) {
-        this.add(this.createDefaultSchema(template));
-      } else {
-        NAF.log.error(`Template el for ${template} is not in the scene, add the template to <a-assets> and register with NAF.schemas.add.`);
-      }
-    }
-    return this.templateCache[template].firstElementChild.cloneNode(true);
+  getCachedTemplate(template, args) {
+    console.log("getCachedTemplate", template)
+    return this.templateCache[template](args)
   }
 
   templateIsCached(template) {
